@@ -6,7 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
-import 'package:path/path.dart' as p;
+import 'database/database_helper.dart';
+import 'model/task.dart';
 
 // ================= TASK MODEL =================
 void main() {
@@ -23,100 +24,6 @@ void initializeDatabaseFactory() {
       defaultTargetPlatform == TargetPlatform.macOS) {
     ffi.sqfliteFfiInit();
     databaseFactory = ffi.databaseFactoryFfi;
-  }
-}
-
-class Task {
-  int? id;
-  String title;
-  DateTime date;
-  bool isCompleted;
-
-  Task({
-    this.id,
-    required this.title,
-    required this.date,
-    this.isCompleted = false,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'date': date.toIso8601String(),
-      'isCompleted': isCompleted ? 1 : 0,
-    };
-  }
-
-  factory Task.fromMap(Map<String, dynamic> map) {
-    return Task(
-      id: map['id'] as int?,
-      title: map['title'] as String,
-      date: DateTime.parse(map['date'] as String),
-      isCompleted: (map['isCompleted'] as int) == 1,
-    );
-  }
-}
-
-// ================= SQLITE DATABASE =================
-
-class DatabaseHelper {
-  DatabaseHelper._privateConstructor();
-
-  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
-
-  static Database? _database;
-
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
-  }
-
-  Future<Database> _initDatabase() async {
-    final databaseDirectory = await databaseFactory.getDatabasesPath();
-    final databasePath = p.join(databaseDirectory, 'todo_tasks.db');
-
-    return openDatabase(
-      databasePath,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            date TEXT NOT NULL,
-            isCompleted INTEGER NOT NULL DEFAULT 0
-          )
-        ''');
-      },
-    );
-  }
-
-  Future<int> insertTask(Task task) async {
-    final db = await database;
-    return db.insert('tasks', task.toMap());
-  }
-
-  Future<List<Task>> getAllTasks() async {
-    final db = await database;
-    final rows = await db.query('tasks', orderBy: 'date ASC, id DESC');
-    return rows.map((row) => Task.fromMap(row)).toList();
-  }
-
-  Future<int> updateTask(Task task) async {
-    final db = await database;
-    return db.update(
-      'tasks',
-      task.toMap(),
-      where: 'id = ?',
-      whereArgs: [task.id],
-    );
-  }
-
-  Future<int> deleteTask(int id) async {
-    final db = await database;
-    return db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 }
 
@@ -664,4 +571,80 @@ class HomePage extends StatelessWidget {
                       size: 28,
                     ),
                   ),
-            
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Create New Task',
+                          style: GoogleFonts.nunitoSans(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          'Add a new task to your list',
+                          style: GoogleFonts.nunitoSans(
+                            fontWeight: FontWeight.w200,
+                            color: Colors.white,
+
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 17),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          // VIEW ACHIEVEMENTS
+        ],
+      ),
+    );
+  }
+
+  Widget overviewCard(String title, String count, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 25),
+          const SizedBox(height: 8),
+          Text(
+            count,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================= ACHIEVE PAGE =================
+
+class AchievePage extends StatelessWidget {
+  final List<Task> tasks;
+  final String selectedFilter;
+  final Function(String) onFilterChanged;
+  final Function(int) onToggleTask;
+  final Function(int) onDeleteTask;
+
+  const AchievePage({
