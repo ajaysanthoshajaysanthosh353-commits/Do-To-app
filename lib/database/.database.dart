@@ -19,7 +19,8 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String fileName) async {
-    final dbPath = await getDatabasesPath();
+    // Uses whichever databaseFactory was set in main() (web / desktop / mobile)
+    final dbPath = await databaseFactory.getDatabasesPath();
 
     final path = join(dbPath, fileName);
 
@@ -54,13 +55,13 @@ class DatabaseHelper {
   Future<List<Task>> getTasks() async {
     final db = await database;
 
-    final result = await db.query(
-      'tasks',
-      orderBy: 'date ASC',
-    );
+    final result = await db.query('tasks', orderBy: 'date ASC, id DESC');
 
     return result.map((map) => Task.fromMap(map)).toList();
   }
+
+  // Same as getTasks (name used in main.dart)
+  Future<List<Task>> getAllTasks() => getTasks();
 
   // UPDATE TASK
   Future<int> updateTask(Task task) async {
